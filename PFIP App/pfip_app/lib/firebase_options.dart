@@ -53,11 +53,11 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDJmfM0ZVfJ3j6Nqta-Nhb0VAAeoVDiPDw',
-    appId: '1:478662010341:android:2c489cbb6ef405f7173b0c',
-    messagingSenderId: '478662010341',
-    projectId: 'poultryfarm-82909',
-    databaseURL: 'https://poultryfarm-82909-default-rtdb.asia-southeast1.firebasedatabase.app',
-    storageBucket: 'poultryfarm-82909.appspot.com',
+    apiKey: 'AIzaSyAs50hnpkaDo6bG-Rf0G4YvEhScBvRMHe8',
+    appId: '1:49270612629:android:f9ccb33ec27f428ef1719c',
+    messagingSenderId: '49270612629',
+    projectId: 'pfip-b0793',
+    databaseURL: 'https://pfip-b0793-default-rtdb.asia-southeast1.firebasedatabase.app',
+    storageBucket: 'pfip-b0793.appspot.com',
   );
 }

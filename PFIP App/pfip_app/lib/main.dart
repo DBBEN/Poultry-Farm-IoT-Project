@@ -38,6 +38,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  int currentIndex = 0;
   int voltReading = 0;
   double energyReading = 0;
   double currentReading = 0;
@@ -52,19 +53,28 @@ class _MyHomePageState extends State<MyHomePage> {
 
     liveData.onValue.listen((DatabaseEvent event) {
       final data = event.snapshot.value;
-      
+
       if (data != null && data is Map<Object?, Object?>) {
         final Map<String, dynamic> typedData = data.cast<String, dynamic>();
-        final temp = data['temp-reading'] as int;
-        final volt = data['vol-reading'] as int;
-        final power = data['pow-reading'] as double;
-        final current = data['curr-reading'] as double;
+        final temp =
+            data['temp-reading'] is int ? data['temp-reading'] as int : 0;
+        final volt =
+            data['vol-reading'] is int ? data['vol-reading'] as int : 0;
+        final power =
+            data['pow-reading'] is double ? data['pow-reading'] as double : 0.0;
+        final current = data['curr-reading'] is double
+            ? data['curr-reading'] as double
+            : 0.0;
+        final ener = data['ener-reading'] is double
+            ? data['ener-reading'] as double
+            : 0.0;
 
         setState(() {
           tempReading = temp;
           voltReading = volt;
           powerReading = power;
           currentReading = current;
+          energyReading = ener;
         });
       }
     });
@@ -98,7 +108,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       style: const TextStyle(
                           color: primary,
                           fontWeight: FontWeight.w600,
-                          fontSize: 25))
+                          fontSize: 20))
                 ],
               ),
             ),

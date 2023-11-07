@@ -1,6 +1,8 @@
 #include <Arduino.h>
-#include <Firebase_ESP_Client.h>
+//#include <Firebase_ESP_Client.h>
+#include <FirebaseESP32.h>
 #include <NTPClient.h>
+#include <DNSServer.h>
 #include <WiFiManager.h>
 #include <LiquidCrystal_I2C.h>
 #include <PZEM004Tv30.h>
@@ -25,14 +27,16 @@
 #define LCD_I2C_ADDR                0x27
 #define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
 
-#define READ_SENSORS_INTERVAL       3000
+#define READ_SENSORS_INTERVAL       2000
 #define DISPLAY_SENSORS_INTERVAL    2000
 #define MAX_VOLTAGE                 260
 #define MAX_CURRENT                 100
 #define MAX_POWER                   26000
-#define API_KEY         "AIzaSyAMAhuxQ_KLs6pn98Yu-QBwpysDwPkOzD8"
-#define DATABASE_URL    "https://poultryfarm-82909-default-rtdb.asia-southeast1.firebasedatabase.app/"
-#define PROJECT_ID      "poultryfarm-82909"
+#define API_KEY                     "AIzaSyAaY9ryEzY4YCQh07b3WedqtCMI07yWs7o"
+#define DATABASE_URL                "https://pfip-b0793-default-rtdb.asia-southeast1.firebasedatabase.app/"
+#define PROJECT_ID                  "pfip-b0793"
+#define USER_EMAIL                  "pfip@gmail.com"
+#define USER_PASS                   "246810"
 //----------------------------------------------------------------------------------------------------------------
 
 FirebaseData fbdo;
@@ -47,14 +51,18 @@ LiquidCrystal_I2C lcd(LCD_I2C_ADDR, LCD_COLUMNS, LCD_ROWS);
 
 // Define NTP Client to get time
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "pool.ntp.org");
+NTPClient timeClient(ntpUDP, "asia.pool.ntp.org");
 
 int _temp, _hum;
-float _pow, _curr; 
+float _pow, _curr, _energy; 
 int _vol;
+
+int _maxVol, _setTemp, _setSwitch, _setServo;
+unsigned long _setAlarm;
+
 int _homeFlag = 0;
-char tempBuff[20], humBuff[20], volBuff[20], currBuff[20], powBuff[20];
-unsigned long lastReadingTime, lastDisplayTime, timestamp;
+char tempBuff[20], humBuff[20], volBuff[20], currBuff[20], powBuff[20], enerBuff[20];
+unsigned long lastReadingTime, lastDisplayTime, lastUploadTime, timestamp;
 
 void tempHumLayout(){
   lcd.print("TEMP: ");
@@ -68,6 +76,10 @@ void powerLayout(){
   lcd.print("C: ");
   lcd.setCursor(8, 0);
   lcd.print("P: ");
+}
+
+void energyLayout(){
+  lcd.print("E: ");
 }
 
 unsigned long getTime() {
@@ -99,23 +111,32 @@ void setup() {
 
   config.api_key = API_KEY;
   config.database_url = DATABASE_URL;
+  auth.user.email = USER_EMAIL;
+  auth.user.password = USER_PASS;
 
-  /* Sign up */
-  if (Firebase.signUp(&config, &auth, "", "")){
-    Serial.println("ok");
-    signupOK = true;
-  }
-  else{
-    Serial.printf("%s\n", config.signer.signupError.message.c_str());
-  }
+  Firebase.reconnectNetwork(true);
+  fbdo.setResponseSize(4096);
+  config.token_status_callback = tokenStatusCallback;
+  fbdo.setBSSLBufferSize(4096 /* Rx buffer size in bytes from 512 - 16384 */, 1024 /* Tx buffer size in bytes from 512 - 16384 */);
+  //config.max_token_generation_retry = 5;
 
-  config.token_status_callback = tokenStatusCallback; 
-  
+  // /* Sign up */
+  // while(signupOK == false){
+  //   if (Firebase.signUp(&config, &auth, "pfip@gmail.com", "246810")){
+  //     Serial.println("ok");
+  //     signupOK = true;
+  //   }
+  //   else{
+  //     Serial.printf("%s\n", config.signer.signupError.message.c_str());
+  //   }
+  // }
+   
   Firebase.begin(&config, &auth);
-  Firebase.reconnectWiFi(true);
+  
   // ------------------------------------------------------------------------------
   lcd.clear();
   lcd.print("Connected!");
+  Serial.println("Connected!");
 
   _servo.write(0);
   delay(1000);
@@ -124,28 +145,29 @@ void setup() {
   _servo.write(0);
   lcd.clear();
 
-  digitalWrite(RELAY_PIN, HIGH);
-  delay(2000);
   digitalWrite(RELAY_PIN, LOW);
-  delay(2000);
-  digitalWrite(RELAY_PIN, HIGH);
   
+  timeClient.begin();
+  timeClient.setTimeOffset(28800);
 
   powerLayout();
 }
 
 void loop() {
+  if(_setSwitch > 0) digitalWrite(RELAY_PIN, HIGH); else digitalWrite(RELAY_PIN, LOW);
   
   if(digitalRead(BTN_PIN) == HIGH){
     lcd.clear();
-    if(_homeFlag > 0) {
-      _homeFlag = 0;
-      powerLayout(); 
+    _homeFlag += 1;
+    if(_homeFlag > 2) _homeFlag = 0;
+
+    if(_homeFlag == 1) {
+      energyLayout();
+    } else if (_homeFlag == 2) {
+      tempHumLayout();
     } else { 
-      _homeFlag = 1;
-      tempHumLayout(); 
+      powerLayout(); 
     }
-    delay(150);
   }
 
   if((millis() - lastReadingTime) >= READ_SENSORS_INTERVAL || millis() < READ_SENSORS_INTERVAL){
@@ -160,6 +182,7 @@ void loop() {
     _vol = pzem.voltage();
     _curr = pzem.current();
     _pow = pzem.power();
+    _energy = pzem.energy();
 
     if(isnan(_vol) || isnan(_curr) || isnan(_pow)){
       Serial.println(F("Failed to read from PZEM004 sensor!"));
@@ -188,36 +211,26 @@ void loop() {
     // Serial.print(" | ADDR:");
     // Serial.print(pzem.readAddress(), HEX);
     // Serial.println();
-    
-    sprintf(tempBuff, "%2d%cC", _temp, char(223));
-    sprintf(humBuff, "%2d%%", _hum);
-    sprintf(volBuff, "%3dV", _vol);
-    sprintf(currBuff, "%.2fA", _curr);
-    sprintf(powBuff, "%3.1fW", _pow);
-
-    if(Firebase.ready() && signupOK){
-      FirebaseJson content;
-      timestamp = getTime();
-      content.set("/timestamp", timestamp);
-      content.set("/temp-reading", _temp);
-      content.set("/hum-reading", _hum);
-      content.set("/vol-reading", _vol);
-      content.set("/curr-reading", _curr);
-      content.set("/pow-reading", _pow);
-      if(Firebase.RTDB.setJSON(&fbdo, "/device-live", &content)); else Serial.println(fbdo.errorReason());
-      if(Firebase.RTDB.pushJSON(&fbdo, "/device-records", &content)); else Serial.println(fbdo.errorReason());
-    }
-
     lastReadingTime = millis();
   }
 
   if((millis() - lastDisplayTime) >= DISPLAY_SENSORS_INTERVAL || millis() < DISPLAY_SENSORS_INTERVAL){
 
-    if(_homeFlag > 0){
+    sprintf(tempBuff, "%2d%cC", _temp, char(223));
+    sprintf(humBuff, "%2d%%", _hum);
+    sprintf(volBuff, "%3dV", _vol);
+    sprintf(currBuff, "%.2fA", _curr);
+    sprintf(powBuff, "%3.2fW", _pow);
+    sprintf(enerBuff, "%3.3fkWh", _energy);
+
+    if(_homeFlag == 2){
       lcd.setCursor(6, 0);
       lcd.print(tempBuff);
       lcd.setCursor(5, 1);
       lcd.print(humBuff);
+    } else if (_homeFlag == 1){
+      lcd.setCursor(3, 0);
+      lcd.print(enerBuff);
     } else {
       lcd.setCursor(3, 0);
       lcd.print(volBuff);
@@ -230,6 +243,28 @@ void loop() {
     lastDisplayTime = millis();
   }
 
-  
+  if(Firebase.ready() && (millis() - lastUploadTime) >= 5000){ 
+      FirebaseJson content;
+      timestamp = getTime();
+      content.set("timestamp", timestamp);
+      content.set("temp-reading", _temp);
+      content.set("hum-reading", _hum);
+      content.set("vol-reading", _vol);
+      content.set("curr-reading", _curr);
+      content.set("pow-reading", _pow);
+      content.set("ener-reading", _energy);
+      if(Firebase.setJSON(fbdo, "device-live", content)); else Serial.println(fbdo.errorReason());
+      if(Firebase.pushJSON(fbdo, "device-records", content)); else Serial.println(fbdo.errorReason());
+
+      if(Firebase.getInt(fbdo, "device-params/set-temp", &_setTemp)); else Serial.println(fbdo.errorReason());
+      if(Firebase.getInt(fbdo, "device-params/set-alarm", &_setAlarm)); else Serial.println(fbdo.errorReason());
+      if(Firebase.getInt(fbdo, "device-params/set-switch", &_setSwitch)); else Serial.println(fbdo.errorReason());
+      if(Firebase.getInt(fbdo, "device-params/set-servo", &_setServo)); else Serial.println(fbdo.errorReason());
+      if(Firebase.getInt(fbdo, "device-params/max-vol", &_maxVol)); else Serial.println(fbdo.errorReason());
+
+      lastUploadTime = millis();
+  }
+
+  delay(150);
 }
 

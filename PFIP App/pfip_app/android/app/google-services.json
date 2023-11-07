@@ -1,14 +1,14 @@
 {
   "project_info": {
-    "project_number": "478662010341",
-    "firebase_url": "https://poultryfarm-82909-default-rtdb.asia-southeast1.firebasedatabase.app",
-    "project_id": "poultryfarm-82909",
-    "storage_bucket": "poultryfarm-82909.appspot.com"
+    "project_number": "49270612629",
+    "firebase_url": "https://pfip-b0793-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "pfip-b0793",
+    "storage_bucket": "pfip-b0793.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:478662010341:android:2c489cbb6ef405f7173b0c",
+        "mobilesdk_app_id": "1:49270612629:android:f9ccb33ec27f428ef1719c",
         "android_client_info": {
           "package_name": "com.example.pfip_app"
         }
@@ -16,7 +16,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDJmfM0ZVfJ3j6Nqta-Nhb0VAAeoVDiPDw"
+          "current_key": "AIzaSyAs50hnpkaDo6bG-Rf0G4YvEhScBvRMHe8"
         }
       ],
       "services": {
