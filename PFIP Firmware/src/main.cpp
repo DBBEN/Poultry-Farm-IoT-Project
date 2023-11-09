@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <Firebase_ESP_Client.h>
-//#include <FirebaseESP32.h>
 #include <NTPClient.h>
 #include <DNSServer.h>
 #include <WiFiManager.h>
@@ -8,6 +7,7 @@
 #include <PZEM004Tv30.h>
 #include <ESP32Servo.h>
 #include <DHT.h>
+#include <WiFi.h>
 
 #include "json/FirebaseJson.h"
 #include "addons/TokenHelper.h"
@@ -38,11 +38,10 @@
 #define MAX_HUM                     100
 #define API_KEY                     "AIzaSyAaY9ryEzY4YCQh07b3WedqtCMI07yWs7o"
 #define DATABASE_URL                "https://pfip-b0793-default-rtdb.asia-southeast1.firebasedatabase.app/"
-#define PROJECT_ID                  "pfip-b0793"
 #define USER_EMAIL                  "pfip@gmail.com"
 #define USER_PASS                   "246810"
 //----------------------------------------------------------------------------------------------------------------
-
+FirebaseJson content;
 FirebaseJson json;
 FirebaseJsonData result;
 FirebaseData fbdo;
@@ -64,7 +63,7 @@ int _temp, _hum;
 float _pow, _curr, _energy; 
 int _vol;
 
-int _maxVol, _setTemp, _setSwitch, _setServo;
+int _setVol, _setTemp, _setSwitch, _setServo;
 unsigned long _setAlarm;
 
 int _homeFlag = 0;
@@ -101,16 +100,7 @@ void setup() {
   lcd.backlight();
   Serial.begin(9600);
   dht.begin();
-
-  Serial.print("Total heap: ");
-  Serial.println(ESP.getHeapSize());
-  Serial.print("Free heap: ");
-  Serial.println(ESP.getFreeHeap());
-  Serial.print("Total PSRAM: "); 
-  Serial.println(ESP.getPsramSize());
-  Serial.print("Free PSRAM: ");
-  Serial.println(ESP.getFreePsram());
-
+  
   pinMode(RELAY_PIN, OUTPUT);
   pinMode(BTN_PIN, INPUT);
 
@@ -131,10 +121,13 @@ void setup() {
   wifiManager.setConfigPortalTimeout(500);
   wifiManager.setConfigPortalBlocking(false);
   wifiManager.autoConnect("Poultry Farm IoT Device");
-  while (WiFi.status() != WL_CONNECTED) {
-    wifiManager.process();
-    vTaskDelay(0);
-  }
+
+  Serial.print("Total heap: ");
+  Serial.println(ESP.getHeapSize());
+  Serial.print("Free heap: ");
+  Serial.println(ESP.getFreeHeap());
+
+  delay(2000);
 
   config.api_key = API_KEY;
   config.database_url = DATABASE_URL;
@@ -142,10 +135,11 @@ void setup() {
   auth.user.password = USER_PASS;
   
   config.token_status_callback = tokenStatusCallback;
-  config.max_token_generation_retry = 5;
+  //config.max_token_generation_retry = 5;
 
-  Firebase.reconnectWiFi(false);
-  fbdo.setBSSLBufferSize(15000, 15000);
+  Firebase.reconnectNetwork(false);
+  fbdo.setBSSLBufferSize(15000 , 15000);
+  fbdo.setResponseSize(4096);
   fbdo.keepAlive(5, 5, 1);
   Firebase.begin(&config, &auth);
   // ------------------------------------------------------------------------------
@@ -203,8 +197,12 @@ void loop() {
       }
 
       if(isnan(_vol) || isnan(_curr) || isnan(_pow)){
-        Serial.println(F("Failed to read from PZEM004 sensor!"));
-        return;
+        // Serial.println(F("Failed to read from PZEM004 sensor!"));
+        // return;
+        _vol = 0;
+        _curr = 0;
+        _pow = 0;
+        _energy = 0;
       }
 
       if(_vol > MAX_VOLTAGE) _vol = 0;
@@ -213,7 +211,6 @@ void loop() {
       if(_temp > MAX_TEMP) _temp = 0;
       if(_hum > MAX_HUM) _temp = 0;
 
-      FirebaseJson content;
       timestamp = getTime();
       content.set("timestamp", timestamp);
       content.set("temp-reading", _temp);
@@ -222,8 +219,8 @@ void loop() {
       content.set("curr-reading", _curr);
       content.set("pow-reading", _pow);
       content.set("ener-reading", _energy);
-      if(Firebase.RTDB.setJSON(&fbdo, "device-live", &content)); else Serial.println(fbdo.errorReason());
-      if(Firebase.RTDB.pushJSON(&fbdo, "device-records", &content)); else Serial.println(fbdo.errorReason());
+      if(Firebase.RTDB.set(&fbdo, "device-live", &content)); else Serial.println(fbdo.errorReason());
+      if(Firebase.RTDB.push(&fbdo, "device-records", &content)); else Serial.println(fbdo.errorReason());
 
       sprintf(tempBuff, "%2d%cC", _temp, char(223));
       sprintf(humBuff, "%2d%%", _hum);
@@ -256,10 +253,27 @@ void loop() {
       if(Firebase.RTDB.getJSON(&fbdo, "device-params/")); else Serial.println(fbdo.errorReason());
       json.setJsonData(fbdo.to<FirebaseJson>().raw());
       json.get(result, "set-switch");
-      Serial.println(result.intValue);
       _setSwitch = result.intValue;
+      json.get(result, "set-alarm");
+      _setAlarm = result.intValue;
+      json.get(result, "set-servo");
+      _setServo = result.intValue;
+      json.get(result, "max-vol");
+      _setVol = result.intValue;
+      json.get(result, "set-temp");
+      _setTemp = result.intValue;
       
-      if(_setSwitch > 0) digitalWrite(RELAY_PIN, HIGH); else digitalWrite(RELAY_PIN, LOW);
+      Serial.print(_setSwitch);
+      Serial.print(", ");
+      Serial.print(_setAlarm);
+      Serial.print(", ");
+      Serial.print(_setServo);
+      Serial.print(", ");
+      Serial.print(_setVol);
+      Serial.print(", ");
+      Serial.println(_setTemp);
+      
+      if(_setSwitch == 1) digitalWrite(RELAY_PIN, HIGH); else digitalWrite(RELAY_PIN, LOW);
       lastReadingTime = millis();
     }
   }
