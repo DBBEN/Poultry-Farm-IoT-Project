@@ -201,64 +201,117 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  homePage() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(height: 30),
+          Container(
+            height: 250,
+            child: SfRadialGauge(
+                title: GaugeTitle(
+                    text: 'VOLTAGE',
+                    textStyle: TextStyle(
+                        color: Colors.grey,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10)),
+                axes: <RadialAxis>[
+                  RadialAxis(
+                    annotations: [
+                      GaugeAnnotation(
+                        widget: Text(
+                          '${voltReading} V',
+                          style: TextStyle(
+                              color: primary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 25),
+                        ),
+                      )
+                    ],
+                    minimum: 0,
+                    maximum: 240,
+                    showLabels: false,
+                    showTicks: false,
+                    axisLineStyle: AxisLineStyle(
+                      thickness: 0.2,
+                      cornerStyle: CornerStyle.bothCurve,
+                      color: Color.fromARGB(30, 0, 169, 181),
+                      thicknessUnit: GaugeSizeUnit.factor,
+                    ),
+                    pointers: <GaugePointer>[
+                      RangePointer(
+                        value: voltReading.toDouble(),
+                        cornerStyle: CornerStyle.bothCurve,
+                        width: 0.2,
+                        sizeUnit: GaugeSizeUnit.factor,
+                      )
+                    ],
+                  )
+                ]),
+          ),
+          SizedBox(height: 30),
+          readingsWidget(),
+        ],
+      ),
+    );
+  }
+
+  graphPage() {
+    return Center(
+        child:
+            Column(mainAxisAlignment: MainAxisAlignment.center, children: []));
+  }
+
+  setPage() {
+    return Center(
+        child:
+            Column(mainAxisAlignment: MainAxisAlignment.center, children: []));
+  }
+
+  homepageSelect() {
+    if (currentIndex == 0) {
+      return homePage();
+    } else if (currentIndex == 1) {
+      return graphPage();
+    } else {
+      return setPage();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(height: 30),
-            Container(
-              height: 250,
-              child: SfRadialGauge(
-                  title: GaugeTitle(
-                      text: 'VOLTAGE',
-                      textStyle: TextStyle(
-                          color: Colors.grey,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10)),
-                  axes: <RadialAxis>[
-                    RadialAxis(
-                      annotations: [
-                        GaugeAnnotation(
-                          widget: Text(
-                            '${voltReading} V',
-                            style: TextStyle(
-                                color: primary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 25),
-                          ),
-                        )
-                      ],
-                      minimum: 0,
-                      maximum: 240,
-                      showLabels: false,
-                      showTicks: false,
-                      axisLineStyle: AxisLineStyle(
-                        thickness: 0.2,
-                        cornerStyle: CornerStyle.bothCurve,
-                        color: Color.fromARGB(30, 0, 169, 181),
-                        thicknessUnit: GaugeSizeUnit.factor,
-                      ),
-                      pointers: <GaugePointer>[
-                        RangePointer(
-                          value: voltReading.toDouble(),
-                          cornerStyle: CornerStyle.bothCurve,
-                          width: 0.2,
-                          sizeUnit: GaugeSizeUnit.factor,
-                        )
-                      ],
-                    )
-                  ]),
-            ),
-            SizedBox(height: 30),
-            readingsWidget(),
-          ],
-        ),
+      body: homepageSelect(),
+      bottomNavigationBar: BottomNavigationBar(
+        selectedItemColor: primary,
+        unselectedItemColor: Colors.grey.withOpacity(0.5),
+        showSelectedLabels: false,
+        showUnselectedLabels: false,
+        elevation: 0,
+        items: const [
+          BottomNavigationBarItem(
+            label: '',
+            icon: Icon(Icons.home_rounded),
+          ),
+          BottomNavigationBarItem(
+            label: '',
+            icon: Icon(Icons.line_axis_rounded),
+          ),
+          BottomNavigationBarItem(
+            label: '',
+            icon: Icon(Icons.settings_rounded),
+          )
+        ],
+        currentIndex: currentIndex,
+        onTap: (int index) {
+          setState(() {
+            currentIndex = index;
+          });
+        },
       ),
     );
   }
