@@ -63,7 +63,8 @@ int _temp, _hum;
 float _pow, _curr, _energy; 
 int _vol;
 
-int _setVol, _setTemp, _setSwitch, _setServo;
+int _setVol, _setTemp, _setServo;
+bool _setSwitch = false;
 unsigned long _setAlarm;
 
 int _homeFlag = 0;
@@ -253,7 +254,7 @@ void loop() {
       if(Firebase.RTDB.getJSON(&fbdo, "device-params/")); else Serial.println(fbdo.errorReason());
       json.setJsonData(fbdo.to<FirebaseJson>().raw());
       json.get(result, "set-switch");
-      _setSwitch = result.intValue;
+      _setSwitch = result.boolValue;
       json.get(result, "set-alarm");
       _setAlarm = result.intValue;
       json.get(result, "set-servo");
@@ -273,7 +274,7 @@ void loop() {
       Serial.print(", ");
       Serial.println(_setTemp);
       
-      if(_setSwitch == 1) digitalWrite(RELAY_PIN, HIGH); else digitalWrite(RELAY_PIN, LOW);
+      digitalWrite(RELAY_PIN, _setSwitch);
       lastReadingTime = millis();
     }
   }
