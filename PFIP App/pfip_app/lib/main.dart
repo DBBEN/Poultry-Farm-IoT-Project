@@ -46,6 +46,8 @@ class _MyHomePageState extends State<MyHomePage> {
   int tempReading = 0;
   FirebaseDatabase database = FirebaseDatabase.instance;
 
+  bool buttonToggle = false;
+
   @override
   void initState() {
     super.initState();
@@ -265,8 +267,40 @@ class _MyHomePageState extends State<MyHomePage> {
 
   setPage() {
     return Center(
-        child:
-            Column(mainAxisAlignment: MainAxisAlignment.center, children: []));
+        child: Container(
+      padding: EdgeInsets.all(20),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        SizedBox(
+            height: 50,
+            width: double.infinity,
+            child: ElevatedButton(
+              style: (buttonToggle == true)
+                  ? ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ))
+                  : ElevatedButton.styleFrom(
+                      backgroundColor: primary,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      )),
+              child: (buttonToggle == true)
+                  ? Text("Turn Off Power",
+                      style: TextStyle(color: Colors.white, fontSize: 16))
+                  : const Text("Turn On Power",
+                      style: TextStyle(color: Colors.white, fontSize: 16)),
+              onPressed: () {
+                setState(() {
+                  buttonToggle = !buttonToggle;
+                });
+                database.ref('device-params/').update({'set-switch' : buttonToggle});
+              },
+            )),
+      ]),
+    ));
   }
 
   homepageSelect() {
