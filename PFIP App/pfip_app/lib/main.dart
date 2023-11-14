@@ -1,7 +1,10 @@
+import 'dart:ffi';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:pfip_app/colors.dart';
 import 'package:pfip_app/firebase_options.dart';
 import 'package:syncfusion_flutter_gauges/gauges.dart';
@@ -47,6 +50,10 @@ class _MyHomePageState extends State<MyHomePage> {
   double energyBill = 0;
   double kwhPrice = 0;
   int tempReading = 0;
+  int maxVol = 0;
+  int maxTemp = 0;
+  int setAlarm = 0;
+  TimeOfDay selectedTime = TimeOfDay.now();
   List<int> voltageDataPoints = []; //LUX
   List<double> powerDataPoints = [];
   final int maxDataPoints = 20;
@@ -104,12 +111,34 @@ class _MyHomePageState extends State<MyHomePage> {
     paramsData.onValue.listen((DatabaseEvent event) {
       final price =
           double.parse(event.snapshot.child('set-price').value.toString());
+      final maxv = int.parse(event.snapshot.child('max-vol').value.toString());
+      final maxt = int.parse(event.snapshot.child('set-temp').value.toString());
+      final time =
+          int.parse(event.snapshot.child('set-alarm').value.toString());
 
       setState(() {
         kwhPrice = price;
         energyBill = kwhPrice * energyReading;
+        maxVol = maxv;
+        maxTemp = maxt;
+        setAlarm = time;
       });
     });
+  }
+
+  String formatEpochToTime(int epoch) {
+    // Convert epoch timestamp to DateTime
+    DateTime dateTime = DateTime.fromMillisecondsSinceEpoch(epoch*1000);
+    // Format DateTime to a human-readable time
+    String formattedTime = DateFormat('h:mm a').format(dateTime);
+    return formattedTime;
+  }
+
+  int convertToEpoch(TimeOfDay time) {
+    DateTime now = DateTime.now();
+    DateTime dateTime =
+        DateTime(now.year, now.month, now.day, time.hour, time.minute);
+    return dateTime.millisecondsSinceEpoch ~/ 1000;
   }
 
   void _showEditDialog(BuildContext context) {
@@ -129,7 +158,6 @@ class _MyHomePageState extends State<MyHomePage> {
           actions: [
             ElevatedButton(
               onPressed: () {
-                
                 database
                     .ref('device-params/')
                     .update({"set-price": double.parse(priceController.text)});
@@ -141,6 +169,86 @@ class _MyHomePageState extends State<MyHomePage> {
         );
       },
     );
+  }
+
+  void _showEditVoltageDialog(BuildContext context) {
+    TextEditingController voltageController = TextEditingController();
+    voltageController.text = maxVol.toString(); // Set initial value
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Edit Voltage Cutoff Limit'),
+          content: TextField(
+            controller: voltageController,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(labelText: 'Enter voltage limit'),
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                database
+                    .ref('device-params/')
+                    .update({"max-vol": int.parse(voltageController.text)});
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEditTemperatureDialog(BuildContext context) {
+    TextEditingController temperatureController = TextEditingController();
+    temperatureController.text = maxTemp.toString(); // Set initial value
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Edit Temperature Trigger'),
+          content: TextField(
+            controller: temperatureController,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(labelText: 'Edit Temperature Trigger'),
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                database.ref('device-params/').update(
+                    {"set-temp": int.parse(temperatureController.text)});
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showEditFeedingDialog(BuildContext context) async {
+    TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: selectedTime,
+    );
+
+    if (pickedTime != null && pickedTime != selectedTime) {
+      setState(() {
+        selectedTime = pickedTime;
+      });
+
+      // Convert selected time to epoch
+      int epochTime = convertToEpoch(selectedTime);
+      database.ref('device-params/').update({"set-alarm": epochTime});
+      
+      setState(() {
+        setAlarm = epochTime;
+      });
+    }
   }
 
   readingsWidget() {
@@ -250,7 +358,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           fontSize: 10,
                         )),
                   ]),
-                  Text('${tempReading.toInt()} °C',
+                  Text('${tempReading.toInt()}°C',
                       style: const TextStyle(
                           color: primary,
                           fontWeight: FontWeight.w600,
@@ -430,36 +538,39 @@ class _MyHomePageState extends State<MyHomePage> {
           height: 15,
         ),
         Container(
-          alignment: Alignment.center,
-          width: 300,
-          decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey, width: 1),
-              borderRadius: BorderRadius.circular(20)),
-          padding: EdgeInsets.all(20),
-          child: Column(
-            children: [
-              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Text('Est. Monthly Bill',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
-                    )),
-                SizedBox(width: 10),
-                ElevatedButton(
-                  onPressed: () {
-                    // Open dialog for editing the price
-                    _showEditDialog(context);
-                  },
-                  child: Text('Edit'),
-                )
-              ]),
-              Text('₱${energyBill.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                      color: primary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 40))
-            ],
+          padding: EdgeInsets.all(15),
+          child: Container(
+            alignment: Alignment.center,
+            //width: 300,
+            decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey, width: 1),
+                borderRadius: BorderRadius.circular(20)),
+            padding: EdgeInsets.all(20),
+            child: Column(
+              children: [
+                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Text('Est. Monthly Bill',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                      )),
+                  SizedBox(width: 10),
+                  ElevatedButton(
+                    onPressed: () {
+                      // Open dialog for editing the price
+                      _showEditDialog(context);
+                    },
+                    child: Text('Edit'),
+                  )
+                ]),
+                Text('₱${energyBill.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                        color: primary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 40))
+              ],
+            ),
           ),
         ),
       ]),
@@ -469,41 +580,159 @@ class _MyHomePageState extends State<MyHomePage> {
   setPage() {
     return Center(
         child: Container(
-      padding: EdgeInsets.all(20),
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        SizedBox(
-            height: 50,
-            width: double.infinity,
-            child: ElevatedButton(
-              style: (buttonToggle == true)
-                  ? ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ))
-                  : ElevatedButton.styleFrom(
-                      backgroundColor: primary,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      )),
-              child: (buttonToggle == true)
-                  ? Text("Turn Off Power",
-                      style: TextStyle(color: Colors.white, fontSize: 16))
-                  : const Text("Turn On Power",
-                      style: TextStyle(color: Colors.white, fontSize: 16)),
-              onPressed: () {
-                setState(() {
-                  buttonToggle = !buttonToggle;
-                });
-                database
-                    .ref('device-params/')
-                    .update({'set-switch': buttonToggle});
-              },
-            )),
-      ]),
-    ));
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  alignment: Alignment.center,
+                  //width: 300,
+                  decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey, width: 1),
+                      borderRadius: BorderRadius.circular(20)),
+                  padding: EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('Voltage Cutoff',
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20,
+                                )),
+                            SizedBox(width: 10),
+                            ElevatedButton(
+                              onPressed: () {
+                                // Open dialog for editing the price
+                                _showEditVoltageDialog(context);
+                              },
+                              child: Text('Edit'),
+                            )
+                          ]),
+                      Text('${maxVol.toString()} V',
+                          style: const TextStyle(
+                              color: primary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 40))
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  height: 20,
+                ),
+                Container(
+                  alignment: Alignment.center,
+                  //width: 300,
+                  decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey, width: 1),
+                      borderRadius: BorderRadius.circular(20)),
+                  padding: EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('Temperature Trigger',
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20,
+                                )),
+                            SizedBox(width: 10),
+                            ElevatedButton(
+                              onPressed: () {
+                                // Open dialog for editing the price
+                                _showEditTemperatureDialog(context);
+                              },
+                              child: Text('Edit'),
+                            )
+                          ]),
+                      Text('${maxTemp.toString()}°C',
+                          style: const TextStyle(
+                              color: primary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 40))
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  height: 20,
+                ),
+                Container(
+                  alignment: Alignment.center,
+                  //width: 300,
+                  decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey, width: 1),
+                      borderRadius: BorderRadius.circular(20)),
+                  padding: EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('Feeding Time',
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20,
+                                )),
+                            SizedBox(width: 10),
+                            ElevatedButton(
+                              onPressed: () {
+                                // Open dialog for editing the price
+                                _showEditFeedingDialog(context);
+                              },
+                              child: Text('Edit'),
+                            )
+                          ]),
+                      Text(formatEpochToTime(setAlarm),
+                          style: const TextStyle(
+                              color: primary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 40))
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  height: 30,
+                ),
+                SizedBox(
+                    height: 50,
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: (buttonToggle == true)
+                          ? ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ))
+                          : ElevatedButton.styleFrom(
+                              backgroundColor: primary,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              )),
+                      child: (buttonToggle == true)
+                          ? Text("Turn Off Power Supply",
+                              style:
+                                  TextStyle(color: Colors.white, fontSize: 16))
+                          : const Text("Turn On Power Supply",
+                              style:
+                                  TextStyle(color: Colors.white, fontSize: 16)),
+                      onPressed: () {
+                        setState(() {
+                          buttonToggle = !buttonToggle;
+                        });
+                        database
+                            .ref('device-params/')
+                            .update({'set-switch': buttonToggle});
+                      },
+                    )),
+              ],
+            )));
   }
 
   homepageSelect() {
