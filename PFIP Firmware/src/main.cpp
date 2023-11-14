@@ -37,6 +37,7 @@
 #define MAX_POWER                   26000
 #define MAX_TEMP                    125
 #define MAX_HUM                     100
+#define GMT_OFFSET_SECONDS          8 * 3600
 #define API_KEY                     "AIzaSyAaY9ryEzY4YCQh07b3WedqtCMI07yWs7o"
 #define DATABASE_URL                "https://pfip-b0793-default-rtdb.asia-southeast1.firebasedatabase.app/"
 #define USER_EMAIL                  "pfip@gmail.com"
@@ -66,11 +67,12 @@ int _vol;
 
 int _setVol, _setTemp, _setServo;
 bool _setSwitch = false;
+bool servoActivated = false;
 unsigned long _setAlarm;
 
 int _homeFlag = 0;
 char tempBuff[20], humBuff[20], volBuff[20], currBuff[20], powBuff[20], enerBuff[20];
-unsigned long lastReadingTime, lastDisplayTime, lastUploadTime, timestamp, lastRefresh;
+unsigned long lastReadingTime, lastUploadTime, timestamp, lastRefresh;
 
 void tempHumLayout(){
   lcd.print("TEMP: ");
@@ -104,8 +106,9 @@ void activateServo(){
   _servo.write(0);
 }
 
-void checkAlarmTime(long alarmTime) {
+void checkAlarmTime(int alarmTime) {
   unsigned long currentTime = getTime();
+  alarmTime += GMT_OFFSET_SECONDS;
 
   // Convert epoch timestamps to DateTime
   tmElements_t currentDateTime;
@@ -121,16 +124,16 @@ void checkAlarmTime(long alarmTime) {
   int alarmHours = alarmDateTime.Hour;
   int alarmMinutes = alarmDateTime.Minute;
 
+  //Serial.printf("Current: %2d:%2d | Alarm: %d:%d\n", currentHours, currentMinutes, alarmHours, alarmMinutes);
+
   // Compare current time with alarm time
-  // if (currentHours == alarmHours && currentMinutes == alarmMinutes) {
-  //   // Trigger the LED
-  //   digitalWrite(ledPin, HIGH);
-  //   Serial.println("LED ON");
-  // } else {
-  //   // LED remains off
-  //   digitalWrite(ledPin, LOW);
-  //   Serial.println("LED OFF");
-  // }
+  if (currentHours == alarmHours && currentMinutes == alarmMinutes && !servoActivated) {
+    activateServo();
+    Serial.println("TRIGGER SERVO!");
+    servoActivated = true;
+  } else if (currentHours == alarmHours && currentMinutes == alarmMinutes + 1 && servoActivated){
+    servoActivated = false;
+  }
 }
 
 void setup() {
@@ -305,6 +308,8 @@ void loop() {
         if(Firebase.RTDB.setInt(&fbdo, "device-params/set-servo", 0)); else Serial.println(fbdo.errorReason());
       }
 
+      checkAlarmTime(_setAlarm);
+      
       
       digitalWrite(RELAY_PIN, _setSwitch);
       lastReadingTime = millis();
