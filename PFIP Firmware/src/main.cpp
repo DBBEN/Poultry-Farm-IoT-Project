@@ -95,6 +95,14 @@ unsigned long getTime() {
   return now;
 }
 
+void activateServo(){
+  _servo.write(0);
+  delay(1000);
+  _servo.write(180);
+  delay(1000);
+  _servo.write(0);
+}
+
 void setup() {
   
   lcd.init();
@@ -147,12 +155,8 @@ void setup() {
   lcd.clear();
   lcd.print("Connected!");
   Serial.println("Connected!");
-
-  _servo.write(0);
-  delay(1000);
-  _servo.write(90);
-  delay(1000);
-  _servo.write(0);
+  delay(2000);
+ 
   lcd.clear();
 
   digitalWrite(RELAY_PIN, LOW);
@@ -264,15 +268,13 @@ void loop() {
       json.get(result, "set-temp");
       _setTemp = result.intValue;
       
-      Serial.print(_setSwitch);
-      Serial.print(", ");
-      Serial.print(_setAlarm);
-      Serial.print(", ");
-      Serial.print(_setServo);
-      Serial.print(", ");
-      Serial.print(_setVol);
-      Serial.print(", ");
-      Serial.println(_setTemp);
+      if(_vol > _setVol) digitalWrite(RELAY_PIN, LOW);
+      if(_temp > _setTemp) digitalWrite(RELAY_PIN, LOW);
+      if(_setServo == 1){
+        activateServo();
+        if(Firebase.RTDB.setInt(&fbdo, "device-params/set-servo", 0)); else Serial.println(fbdo.errorReason());
+      }
+
       
       digitalWrite(RELAY_PIN, _setSwitch);
       lastReadingTime = millis();
