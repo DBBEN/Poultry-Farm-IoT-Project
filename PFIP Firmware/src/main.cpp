@@ -8,6 +8,7 @@
 #include <ESP32Servo.h>
 #include <DHT.h>
 #include <WiFi.h>
+#include <TimeLib.h>
 
 #include "json/FirebaseJson.h"
 #include "addons/TokenHelper.h"
@@ -101,6 +102,35 @@ void activateServo(){
   _servo.write(180);
   delay(1000);
   _servo.write(0);
+}
+
+void checkAlarmTime(long alarmTime) {
+  unsigned long currentTime = getTime();
+
+  // Convert epoch timestamps to DateTime
+  tmElements_t currentDateTime;
+  breakTime(currentTime, currentDateTime);
+
+  tmElements_t alarmDateTime;
+  breakTime(alarmTime, alarmDateTime);
+
+  // Extract hours and minutes
+  int currentHours = currentDateTime.Hour;
+  int currentMinutes = currentDateTime.Minute;
+
+  int alarmHours = alarmDateTime.Hour;
+  int alarmMinutes = alarmDateTime.Minute;
+
+  // Compare current time with alarm time
+  // if (currentHours == alarmHours && currentMinutes == alarmMinutes) {
+  //   // Trigger the LED
+  //   digitalWrite(ledPin, HIGH);
+  //   Serial.println("LED ON");
+  // } else {
+  //   // LED remains off
+  //   digitalWrite(ledPin, LOW);
+  //   Serial.println("LED OFF");
+  // }
 }
 
 void setup() {
