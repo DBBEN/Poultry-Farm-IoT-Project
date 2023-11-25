@@ -234,13 +234,21 @@ void loop() {
         return;
       }
 
-      if(isnan(_vol) || isnan(_curr) || isnan(_pow)){
+      // if(isnan(_vol) || isnan(_curr) || isnan(_pow)){
+      //   // Serial.println(F("Failed to read from PZEM004 sensor!"));
+      //   // return;
+      //   _vol = 0;
+      //   _curr = 0;
+      //   _pow = 0;
+      //   _energy = 0;
+      // }
+
+      if(_curr <= 0){
         // Serial.println(F("Failed to read from PZEM004 sensor!"));
         // return;
         _vol = 0;
         _curr = 0;
         _pow = 0;
-        _energy = 0;
       }
 
       if(_vol > MAX_VOLTAGE) _vol = 0;
