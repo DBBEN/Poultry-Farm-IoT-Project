@@ -157,11 +157,11 @@ void setup() {
   delay(1000);
 
   // WIFI - FIREBASE -------------------------------------------------------------
-  WiFi.mode(WIFI_STA);
-  wifiManager.setConnectRetries(2);
-  wifiManager.setConnectTimeout(10);
-  wifiManager.setConfigPortalTimeout(500);
-  wifiManager.setConfigPortalBlocking(false);
+  // WiFi.mode(WIFI_STA);
+  // wifiManager.setConnectRetries(2);
+  // wifiManager.setConnectTimeout(10);
+  // wifiManager.setConfigPortalTimeout(500);
+  // wifiManager.setConfigPortalBlocking(false);
   wifiManager.autoConnect("Poultry Farm IoT Device");
 
   Serial.print("Total heap: ");
