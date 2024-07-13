@@ -22,12 +22,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Ilaw App',
+      title: 'BroilerTech',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: primary,
       ),
-      home: const MyHomePage(title: 'Ilaw App'),
+      home: const MyHomePage(title: 'BroilerTech'),
     );
   }
 }
@@ -50,8 +50,10 @@ class _MyHomePageState extends State<MyHomePage> {
   double energyBill = 0;
   double kwhPrice = 0;
   int tempReading = 0;
+  int humReading = 0;
   int maxVol = 0;
   int maxTemp = 0;
+  int maxHum = 0;
   int setAlarm = 0;
   TimeOfDay selectedTime = TimeOfDay.now();
   List<int> voltageDataPoints = []; //LUX
@@ -59,7 +61,8 @@ class _MyHomePageState extends State<MyHomePage> {
   final int maxDataPoints = 20;
   FirebaseDatabase database = FirebaseDatabase.instance;
 
-  bool buttonToggle = false;
+  bool button1Toggle = false;
+  bool button2Toggle = false;
 
   @override
   void initState() {
@@ -84,9 +87,34 @@ class _MyHomePageState extends State<MyHomePage> {
       });
     });
 
+    paramsData.onValue.listen((DatabaseEvent event) {
+      final price = double.parse(event.snapshot.child('set-price').value.toString());
+      final maxv = int.parse(event.snapshot.child('max-vol').value.toString());
+      final maxt = int.parse(event.snapshot.child('set-temp').value.toString());
+      final maxh = int.parse(event.snapshot.child('set-hum').value.toString());
+      //final time = int.parse(event.snapshot.child('set-alarm').value.toString());
+      final switch1 = event.snapshot.child('set-switch-1').value as bool;
+      final switch2 = event.snapshot.child('set-switch-2').value as bool;
+      //print("Switch 1: $switch1, Switch 2: $switch2");
+
+      setState(() {
+        kwhPrice = price;
+        energyBill = kwhPrice * energyReading;
+        maxVol = maxv;
+        maxTemp = maxt;
+        maxHum = maxh;
+        button1Toggle = switch1;
+        button2Toggle = switch2;
+        //setAlarm = time;
+        //print({kwhPrice, energyBill, maxVol, maxHum});
+      });
+    });
+
     liveData.onValue.listen((DatabaseEvent event) {
       final temp =
           int.parse(event.snapshot.child('temp-reading').value.toString());
+      final hum =
+          int.parse(event.snapshot.child('hum-reading').value.toString());
       final volt =
           int.parse(event.snapshot.child('vol-reading').value.toString());
       final power =
@@ -95,11 +123,10 @@ class _MyHomePageState extends State<MyHomePage> {
           double.parse(event.snapshot.child('curr-reading').value.toString());
       final ener =
           double.parse(event.snapshot.child('ener-reading').value.toString());
-      // final price =
-      //     typedData['device-params/kwh-price'] is double ? typedData['device-params/kwh-price'] as double : 0.0;
 
       setState(() {
         tempReading = temp;
+        humReading = hum;
         voltReading = volt;
         powerReading = power;
         currentReading = current;
@@ -107,28 +134,11 @@ class _MyHomePageState extends State<MyHomePage> {
         energyBill = kwhPrice * energyReading;
       });
     });
-
-    paramsData.onValue.listen((DatabaseEvent event) {
-      final price =
-          double.parse(event.snapshot.child('set-price').value.toString());
-      final maxv = int.parse(event.snapshot.child('max-vol').value.toString());
-      final maxt = int.parse(event.snapshot.child('set-temp').value.toString());
-      final time =
-          int.parse(event.snapshot.child('set-alarm').value.toString());
-
-      setState(() {
-        kwhPrice = price;
-        energyBill = kwhPrice * energyReading;
-        maxVol = maxv;
-        maxTemp = maxt;
-        setAlarm = time;
-      });
-    });
   }
 
   String formatEpochToTime(int epoch) {
     // Convert epoch timestamp to DateTime
-    DateTime dateTime = DateTime.fromMillisecondsSinceEpoch(epoch*1000);
+    DateTime dateTime = DateTime.fromMillisecondsSinceEpoch(epoch * 1000);
     // Format DateTime to a human-readable time
     String formattedTime = DateFormat('h:mm a').format(dateTime);
     return formattedTime;
@@ -209,11 +219,11 @@ class _MyHomePageState extends State<MyHomePage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Edit Temperature Trigger'),
+          title: Text('Edit Temperature Threshold'),
           content: TextField(
             controller: temperatureController,
             keyboardType: TextInputType.number,
-            decoration: InputDecoration(labelText: 'Edit Temperature Trigger'),
+            decoration: InputDecoration(labelText: 'Edit Temperature Threshold'),
           ),
           actions: [
             ElevatedButton(
@@ -230,26 +240,55 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Future<void> _showEditFeedingDialog(BuildContext context) async {
-    TimeOfDay? pickedTime = await showTimePicker(
+  void _showEditHumidityDialog(BuildContext context) {
+    TextEditingController humidityController = TextEditingController();
+    humidityController.text = maxHum.toString(); // Set initial value
+
+    showDialog(
       context: context,
-      initialTime: selectedTime,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Edit Humidity Threshold'),
+          content: TextField(
+            controller: humidityController,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(labelText: 'Edit Temperature Threshold'),
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                database.ref('device-params/').update(
+                    {"set-hum": int.parse(humidityController.text)});
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: Text('Save'),
+            ),
+          ],
+        );
+      },
     );
-
-    if (pickedTime != null && pickedTime != selectedTime) {
-      setState(() {
-        selectedTime = pickedTime;
-      });
-
-      // Convert selected time to epoch
-      int epochTime = convertToEpoch(selectedTime);
-      database.ref('device-params/').update({"set-alarm": epochTime});
-      
-      setState(() {
-        setAlarm = epochTime;
-      });
-    }
   }
+
+  // Future<void> _showEditFeedingDialog(BuildContext context) async {
+  //   TimeOfDay? pickedTime = await showTimePicker(
+  //     context: context,
+  //     initialTime: selectedTime,
+  //   );
+
+  //   if (pickedTime != null && pickedTime != selectedTime) {
+  //     setState(() {
+  //       selectedTime = pickedTime;
+  //     });
+
+  //     // Convert selected time to epoch
+  //     int epochTime = convertToEpoch(selectedTime);
+  //     database.ref('device-params/').update({"set-alarm": epochTime});
+
+  //     setState(() {
+  //       setAlarm = epochTime;
+  //     });
+  //   }
+  // }
 
   readingsWidget() {
     return Column(
@@ -367,7 +406,33 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             )
           ],
-        )
+        ),
+        SizedBox(height: 10),
+        Container(
+              alignment: Alignment.center,
+              width: 300,
+              decoration: BoxDecoration(
+                  border: Border.all(color: Colors.black, width: 1),
+                  borderRadius: BorderRadius.circular(20)),
+              padding: EdgeInsets.all(15),
+              child: Column(
+                children: [
+                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Text('HUMIDITY',
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                        )),
+                  ]),
+                  Text('${humReading} %',
+                      style: const TextStyle(
+                          color: primary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 25))
+                ],
+              ),
+            )
       ],
     );
   }
@@ -634,7 +699,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text('Temperature Trigger',
+                            Text('Temperature Threshold',
                                 style: TextStyle(
                                   color: Colors.black,
                                   fontWeight: FontWeight.bold,
@@ -660,6 +725,41 @@ class _MyHomePageState extends State<MyHomePage> {
                 SizedBox(
                   height: 20,
                 ),
+                // Container(
+                //   alignment: Alignment.center,
+                //   //width: 300,
+                //   decoration: BoxDecoration(
+                //       border: Border.all(color: Colors.grey, width: 1),
+                //       borderRadius: BorderRadius.circular(20)),
+                //   padding: EdgeInsets.all(20),
+                //   child: Column(
+                //     children: [
+                //       Row(
+                //           mainAxisAlignment: MainAxisAlignment.center,
+                //           children: [
+                //             Text('Feeding Time',
+                //                 style: TextStyle(
+                //                   color: Colors.black,
+                //                   fontWeight: FontWeight.bold,
+                //                   fontSize: 20,
+                //                 )),
+                //             SizedBox(width: 10),
+                //             ElevatedButton(
+                //               onPressed: () {
+                //                 // Open dialog for editing the price
+                //                 _showEditFeedingDialog(context);
+                //               },
+                //               child: Text('Edit'),
+                //             )
+                //           ]),
+                //       Text(formatEpochToTime(setAlarm),
+                //           style: const TextStyle(
+                //               color: primary,
+                //               fontWeight: FontWeight.w600,
+                //               fontSize: 40))
+                //     ],
+                //   ),
+                // ),
                 Container(
                   alignment: Alignment.center,
                   //width: 300,
@@ -672,7 +772,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text('Feeding Time',
+                            Text('Humidity Threshold',
                                 style: TextStyle(
                                   color: Colors.black,
                                   fontWeight: FontWeight.bold,
@@ -682,12 +782,12 @@ class _MyHomePageState extends State<MyHomePage> {
                             ElevatedButton(
                               onPressed: () {
                                 // Open dialog for editing the price
-                                _showEditFeedingDialog(context);
+                                _showEditHumidityDialog(context);
                               },
                               child: Text('Edit'),
                             )
                           ]),
-                      Text(formatEpochToTime(setAlarm),
+                      Text('${maxHum.toString()}%',
                           style: const TextStyle(
                               color: primary,
                               fontWeight: FontWeight.w600,
@@ -695,42 +795,78 @@ class _MyHomePageState extends State<MyHomePage> {
                     ],
                   ),
                 ),
-                SizedBox(
-                  height: 30,
-                ),
-                SizedBox(
-                    height: 50,
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: (buttonToggle == true)
-                          ? ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ))
-                          : ElevatedButton.styleFrom(
-                              backgroundColor: primary,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              )),
-                      child: (buttonToggle == true)
-                          ? Text("Turn Off Power Supply",
-                              style:
-                                  TextStyle(color: Colors.white, fontSize: 16))
-                          : const Text("Turn On Power Supply",
-                              style:
-                                  TextStyle(color: Colors.white, fontSize: 16)),
-                      onPressed: () {
-                        setState(() {
-                          buttonToggle = !buttonToggle;
-                        });
-                        database
-                            .ref('device-params/')
-                            .update({'set-switch': buttonToggle});
-                      },
-                    )),
+                // SizedBox(
+                //   height: 30,
+                // ),
+                // SizedBox(
+                //     height: 50,
+                //     width: double.infinity,
+                //     child: ElevatedButton(
+                //       style: (button1Toggle == true)
+                //           ? ElevatedButton.styleFrom(
+                //               backgroundColor: Colors.red,
+                //               elevation: 0,
+                //               shape: RoundedRectangleBorder(
+                //                 borderRadius: BorderRadius.circular(30),
+                //               ))
+                //           : ElevatedButton.styleFrom(
+                //               backgroundColor: primary,
+                //               elevation: 0,
+                //               shape: RoundedRectangleBorder(
+                //                 borderRadius: BorderRadius.circular(30),
+                //               )),
+                //       child: (button1Toggle == true)
+                //           ? Text("Turn Off Fan",
+                //               style:
+                //                   TextStyle(color: Colors.white, fontSize: 16))
+                //           : const Text("Turn On Fan",
+                //               style:
+                //                   TextStyle(color: Colors.white, fontSize: 16)),
+                //       onPressed: () {
+                //         setState(() {
+                //           button1Toggle = !button1Toggle;
+                //         });
+                //         database
+                //             .ref('device-params/')
+                //             .update({'set-switch-1': button1Toggle});
+                //       },
+                //     )),
+                // SizedBox(
+                //   height: 15,
+                // ),
+                // SizedBox(
+                //     height: 50,
+                //     width: double.infinity,
+                //     child: ElevatedButton(
+                //       style: (button2Toggle == true)
+                //           ? ElevatedButton.styleFrom(
+                //               backgroundColor: Colors.red,
+                //               elevation: 0,
+                //               shape: RoundedRectangleBorder(
+                //                 borderRadius: BorderRadius.circular(30),
+                //               ))
+                //           : ElevatedButton.styleFrom(
+                //               backgroundColor: primary,
+                //               elevation: 0,
+                //               shape: RoundedRectangleBorder(
+                //                 borderRadius: BorderRadius.circular(30),
+                //               )),
+                //       child: (button2Toggle == true)
+                //           ? Text("Turn Off Bulb",
+                //               style:
+                //                   TextStyle(color: Colors.white, fontSize: 16))
+                //           : const Text("Turn On Bulb",
+                //               style:
+                //                   TextStyle(color: Colors.white, fontSize: 16)),
+                //       onPressed: () {
+                //         setState(() {
+                //           button2Toggle = !button2Toggle;
+                //         });
+                //         database
+                //             .ref('device-params/')
+                //             .update({'set-switch-2': button2Toggle});
+                //       },
+                //     ))
               ],
             )));
   }

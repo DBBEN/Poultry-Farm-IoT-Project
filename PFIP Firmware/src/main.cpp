@@ -1,26 +1,27 @@
 #include <Arduino.h>
 #include <Firebase_ESP_Client.h>
-#include <NTPClient.h>
-#include <DNSServer.h>
+//#include <NTPClient.h>
+//#include <DNSServer.h>
 #include <WiFiManager.h>
 #include <LiquidCrystal_I2C.h>
 #include <PZEM004Tv30.h>
-#include <ESP32Servo.h>
+//#include <ESP32Servo.h>
 #include <DHT.h>
 #include <WiFi.h>
-#include <TimeLib.h>
+//#include <TimeLib.h>
 
 #include "json/FirebaseJson.h"
 #include "addons/TokenHelper.h"
 #include "addons/RTDBHelper.h"
 
 // PINOUT --------------------------------------------------------------------------------------------------------
-#define SERVO_PIN                   2
+//#define SERVO_PIN                   2
 #define DHT_PIN                     4
 #define BTN_PIN                     5
 #define PZEM_RX_PIN                 16
 #define PZEM_TX_PIN                 17
-#define RELAY_PIN                   18
+#define SS_RELAY_PIN                18
+#define RELAY2_PIN                  2
 //----------------------------------------------------------------------------------------------------------------
 
 // PARAMS --------------------------------------------------------------------------------------------------------
@@ -52,21 +53,21 @@ FirebaseConfig config;
 bool signupOK = false;
 
 WiFiManager wifiManager;
-Servo _servo;
+//Servo _servo;
 PZEM004Tv30 pzem(Serial2, PZEM_RX_PIN, PZEM_TX_PIN);
 DHT dht(DHT_PIN, DHTTYPE);
 LiquidCrystal_I2C lcd(LCD_I2C_ADDR, LCD_COLUMNS, LCD_ROWS);
 
 // Define NTP Client to get time
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "asia.pool.ntp.org");
+// WiFiUDP ntpUDP;
+// NTPClient timeClient(ntpUDP, "asia.pool.ntp.org");
 
 int _temp, _hum;
 float _pow, _curr, _energy; 
 int _vol;
 
-int _setVol, _setTemp, _setServo;
-bool _setSwitch = false;
+int _setVol, _setTemp, _setHum, _setServo;
+bool _setSwitch1, _setSwitch2, _setSwitchEn = false;
 bool servoActivated = false;
 unsigned long _setAlarm;
 
@@ -92,66 +93,69 @@ void energyLayout(){
   lcd.print("E: ");
 }
 
-unsigned long getTime() {
-  timeClient.update();
-  unsigned long now = timeClient.getEpochTime();
-  return now;
-}
+// unsigned long getTime() {
+//   timeClient.update();
+//   unsigned long now = timeClient.getEpochTime();
+//   return now;
+// }
 
-void activateServo(){
-  _servo.write(0);
-  delay(1000);
-  _servo.write(180);
-  delay(1000);
-  _servo.write(0);
-}
+// void activateServo(){
+//   _servo.write(0);
+//   delay(1000);
+//   _servo.write(180);
+//   delay(1000);
+//   _servo.write(0);
+// }
 
-void checkAlarmTime(int alarmTime) {
-  unsigned long currentTime = getTime();
-  alarmTime += GMT_OFFSET_SECONDS;
+// void checkAlarmTime(int alarmTime) {
+//   unsigned long currentTime = getTime();
+//   alarmTime += GMT_OFFSET_SECONDS;
 
-  // Convert epoch timestamps to DateTime
-  tmElements_t currentDateTime;
-  breakTime(currentTime, currentDateTime);
+//   // Convert epoch timestamps to DateTime
+//   tmElements_t currentDateTime;
+//   breakTime(currentTime, currentDateTime);
 
-  tmElements_t alarmDateTime;
-  breakTime(alarmTime, alarmDateTime);
+//   tmElements_t alarmDateTime;
+//   breakTime(alarmTime, alarmDateTime);
 
-  // Extract hours and minutes
-  int currentHours = currentDateTime.Hour;
-  int currentMinutes = currentDateTime.Minute;
+//   // Extract hours and minutes
+//   int currentHours = currentDateTime.Hour;
+//   int currentMinutes = currentDateTime.Minute;
 
-  int alarmHours = alarmDateTime.Hour;
-  int alarmMinutes = alarmDateTime.Minute;
+//   int alarmHours = alarmDateTime.Hour;
+//   int alarmMinutes = alarmDateTime.Minute;
 
-  //Serial.printf("Current: %2d:%2d | Alarm: %d:%d\n", currentHours, currentMinutes, alarmHours, alarmMinutes);
+//   //Serial.printf("Current: %2d:%2d | Alarm: %d:%d\n", currentHours, currentMinutes, alarmHours, alarmMinutes);
 
-  // Compare current time with alarm time
-  if (currentHours == alarmHours && currentMinutes == alarmMinutes && !servoActivated) {
-    activateServo();
-    Serial.println("TRIGGER SERVO!");
-    servoActivated = true;
-  } else if (currentHours == alarmHours && currentMinutes == alarmMinutes + 1 && servoActivated){
-    servoActivated = false;
-  }
-}
+//   // Compare current time with alarm time
+//   if (currentHours == alarmHours && currentMinutes == alarmMinutes && !servoActivated) {
+//     activateServo();
+//     Serial.println("TRIGGER SERVO!");
+//     servoActivated = true;
+//   } else if (currentHours == alarmHours && currentMinutes == alarmMinutes + 1 && servoActivated){
+//     servoActivated = false;
+//   }
+// }
 
 void setup() {
-  
   lcd.init();
   lcd.backlight();
   Serial.begin(9600);
   dht.begin();
   
-  pinMode(RELAY_PIN, OUTPUT);
+  pinMode(SS_RELAY_PIN, OUTPUT);
+  pinMode(RELAY2_PIN, OUTPUT);
   pinMode(BTN_PIN, INPUT);
 
-  ESP32PWM::allocateTimer(0);
-	ESP32PWM::allocateTimer(1);
-	ESP32PWM::allocateTimer(2);
-	ESP32PWM::allocateTimer(3);
-	_servo.setPeriodHertz(50);   
-	_servo.attach(SERVO_PIN, 500, 2400);
+  digitalWrite(SS_RELAY_PIN, LOW);
+  digitalWrite(RELAY2_PIN, HIGH);
+
+  // ESP32PWM::allocateTimer(0);
+	// ESP32PWM::allocateTimer(1);
+	// ESP32PWM::allocateTimer(2);
+	// ESP32PWM::allocateTimer(3);
+	// _servo.setPeriodHertz(50);   
+	// _servo.attach(SERVO_PIN, 500, 2400);
   lcd.print("Connecting...");
 
   delay(1000);
@@ -177,7 +181,6 @@ void setup() {
   auth.user.password = USER_PASS;
   
   config.token_status_callback = tokenStatusCallback;
-  //config.max_token_generation_retry = 5;
 
   Firebase.reconnectNetwork(false);
   fbdo.setBSSLBufferSize(15000 , 15000);
@@ -191,11 +194,9 @@ void setup() {
   delay(2000);
  
   lcd.clear();
-
-  digitalWrite(RELAY_PIN, LOW);
   
-  timeClient.begin();
-  timeClient.setTimeOffset(28800);
+  // timeClient.begin();
+  // timeClient.setTimeOffset(28800);
 
   powerLayout();
 }
@@ -234,18 +235,7 @@ void loop() {
         return;
       }
 
-      // if(isnan(_vol) || isnan(_curr) || isnan(_pow)){
-      //   // Serial.println(F("Failed to read from PZEM004 sensor!"));
-      //   // return;
-      //   _vol = 0;
-      //   _curr = 0;
-      //   _pow = 0;
-      //   _energy = 0;
-      // }
-
       if(_curr <= 0){
-        // Serial.println(F("Failed to read from PZEM004 sensor!"));
-        // return;
         _vol = 0;
         _curr = 0;
         _pow = 0;
@@ -255,10 +245,10 @@ void loop() {
       if(_curr > MAX_CURRENT) _curr = 0;
       if(_pow > MAX_POWER) _pow = 0;
       if(_temp > MAX_TEMP) _temp = 0;
-      if(_hum > MAX_HUM) _temp = 0;
+      if(_hum > MAX_HUM) _hum = 0;
 
-      timestamp = getTime();
-      content.set("timestamp", timestamp);
+      //timestamp = getTime();
+      //content.set("timestamp", timestamp);
       content.set("temp-reading", _temp);
       content.set("hum-reading", _hum);
       content.set("vol-reading", _vol);
@@ -298,28 +288,48 @@ void loop() {
     else if((millis() - lastReadingTime) >= READ_INTERVAL){
       if(Firebase.RTDB.getJSON(&fbdo, "device-params/")); else Serial.println(fbdo.errorReason());
       json.setJsonData(fbdo.to<FirebaseJson>().raw());
-      json.get(result, "set-switch");
-      _setSwitch = result.boolValue;
-      json.get(result, "set-alarm");
-      _setAlarm = result.intValue;
-      json.get(result, "set-servo");
-      _setServo = result.intValue;
+      json.get(result, "set-switch-1");
+      _setSwitch1 = result.boolValue;
+      json.get(result, "set-switch-2");
+      _setSwitch2 = result.boolValue;
+      json.get(result, "set-switch-enable");
+      _setSwitchEn = result.boolValue;
+      // json.get(result, "set-alarm");
+      // _setAlarm = result.intValue;
+      // json.get(result, "set-servo");
+      // _setServo = result.intValue;
       json.get(result, "max-vol");
       _setVol = result.intValue;
       json.get(result, "set-temp");
       _setTemp = result.intValue;
+      json.get(result, "set-hum");
+      _setHum = result.intValue;
       
-      if(_vol > _setVol) digitalWrite(RELAY_PIN, LOW);
-      if(_temp > _setTemp) digitalWrite(RELAY_PIN, LOW);
-      if(_setServo == 1){
-        activateServo();
-        if(Firebase.RTDB.setInt(&fbdo, "device-params/set-servo", 0)); else Serial.println(fbdo.errorReason());
+      // if(_setServo == 1){
+      //   activateServo();
+      //   if(Firebase.RTDB.setInt(&fbdo, "device-params/set-servo", 0)); else Serial.println(fbdo.errorReason());
+      // }
+
+      //checkAlarmTime(_setAlarm);
+      
+      if(_setSwitchEn == true){
+        digitalWrite(SS_RELAY_PIN, _setSwitch1);
+        digitalWrite(RELAY2_PIN, !_setSwitch2);
+      } else if (_setSwitchEn == false) {
+        //Temperature adjust on light bulb
+        if (_temp < _setTemp) digitalWrite(RELAY2_PIN, LOW);
+        else digitalWrite(RELAY2_PIN, HIGH);
+
+        //Humidity adjust on fan
+        if (_hum > _setHum) digitalWrite(SS_RELAY_PIN, HIGH);
+        else digitalWrite(SS_RELAY_PIN, LOW);
+
+        if(_vol > _setVol) {
+          digitalWrite(SS_RELAY_PIN, LOW);
+          digitalWrite(RELAY2_PIN, HIGH);
+        }
       }
 
-      checkAlarmTime(_setAlarm);
-      
-      
-      digitalWrite(RELAY_PIN, _setSwitch);
       lastReadingTime = millis();
     }
   }
