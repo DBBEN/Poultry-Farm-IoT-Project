@@ -1,5 +1,6 @@
-import 'dart:ffi';
+//import 'dart:ffi';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -60,6 +61,7 @@ class _MyHomePageState extends State<MyHomePage> {
   List<double> powerDataPoints = [];
   final int maxDataPoints = 20;
   FirebaseDatabase database = FirebaseDatabase.instance;
+  final formKey = GlobalKey<FormState>();
 
   bool button1Toggle = false;
   bool button2Toggle = false;
@@ -88,7 +90,8 @@ class _MyHomePageState extends State<MyHomePage> {
     });
 
     paramsData.onValue.listen((DatabaseEvent event) {
-      final price = double.parse(event.snapshot.child('set-price').value.toString());
+      final price =
+          double.parse(event.snapshot.child('set-price').value.toString());
       final maxv = int.parse(event.snapshot.child('max-vol').value.toString());
       final maxt = int.parse(event.snapshot.child('set-temp').value.toString());
       final maxh = int.parse(event.snapshot.child('set-hum').value.toString());
@@ -223,7 +226,8 @@ class _MyHomePageState extends State<MyHomePage> {
           content: TextField(
             controller: temperatureController,
             keyboardType: TextInputType.number,
-            decoration: InputDecoration(labelText: 'Edit Temperature Threshold'),
+            decoration:
+                InputDecoration(labelText: 'Edit Temperature Threshold'),
           ),
           actions: [
             ElevatedButton(
@@ -252,13 +256,15 @@ class _MyHomePageState extends State<MyHomePage> {
           content: TextField(
             controller: humidityController,
             keyboardType: TextInputType.number,
-            decoration: InputDecoration(labelText: 'Edit Temperature Threshold'),
+            decoration:
+                InputDecoration(labelText: 'Edit Temperature Threshold'),
           ),
           actions: [
             ElevatedButton(
               onPressed: () {
-                database.ref('device-params/').update(
-                    {"set-hum": int.parse(humidityController.text)});
+                database
+                    .ref('device-params/')
+                    .update({"set-hum": int.parse(humidityController.text)});
                 Navigator.of(context).pop(); // Close the dialog
               },
               child: Text('Save'),
@@ -409,30 +415,30 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
         SizedBox(height: 10),
         Container(
-              alignment: Alignment.center,
-              width: 300,
-              decoration: BoxDecoration(
-                  border: Border.all(color: Colors.black, width: 1),
-                  borderRadius: BorderRadius.circular(20)),
-              padding: EdgeInsets.all(15),
-              child: Column(
-                children: [
-                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Text('HUMIDITY',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10,
-                        )),
-                  ]),
-                  Text('${humReading} %',
-                      style: const TextStyle(
-                          color: primary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 25))
-                ],
-              ),
-            )
+          alignment: Alignment.center,
+          width: 300,
+          decoration: BoxDecoration(
+              border: Border.all(color: Colors.black, width: 1),
+              borderRadius: BorderRadius.circular(20)),
+          padding: EdgeInsets.all(15),
+          child: Column(
+            children: [
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Text('HUMIDITY',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10,
+                    )),
+              ]),
+              Text('${humReading} %',
+                  style: const TextStyle(
+                      color: primary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 25))
+            ],
+          ),
+        )
       ],
     );
   }
@@ -871,14 +877,344 @@ class _MyHomePageState extends State<MyHomePage> {
             )));
   }
 
+  void _showAddEntryDialog(BuildContext context) {
+    TextEditingController labelController = TextEditingController();
+    TextEditingController startHeadsController = TextEditingController();
+    TextEditingController endHeadsController = TextEditingController();
+    DateTime? startDate;
+    DateTime? endDate;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Add New Entry'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: labelController,
+                  decoration: InputDecoration(labelText: 'Label'),
+                ),
+                TextField(
+                  controller: startHeadsController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(labelText: 'Start Heads'),
+                ),
+                TextField(
+                  controller: endHeadsController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(labelText: 'End Heads'),
+                ),
+                SizedBox(height: 10),
+                ElevatedButton(
+                  onPressed: () async {
+                    startDate = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now(),
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2101),
+                    );
+                  },
+                  child: Text('Select Start Date'),
+                ),
+                SizedBox(height: 10),
+                ElevatedButton(
+                  onPressed: () async {
+                    endDate = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now(),
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2101),
+                    );
+                  },
+                  child: Text('Select End Date'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () async {
+                if (labelController.text.isNotEmpty &&
+                    startHeadsController.text.isNotEmpty &&
+                    endHeadsController.text.isNotEmpty &&
+                    startDate != null &&
+                    endDate != null) {
+                  int startHeads = int.parse(startHeadsController.text);
+                  int endHeads = int.parse(endHeadsController.text);
+                  double fatalityPercent = double.parse(
+                      (((startHeads - endHeads) / startHeads) * 100)
+                          .toStringAsFixed(1));
+
+                  // Save the data to Firestore
+                  final records =
+                      FirebaseFirestore.instance.collection('records').doc();
+                  final data = {
+                    'label': labelController.text,
+                    'startHeads': startHeads,
+                    'endHeads': endHeads,
+                    'timeDateStart': Timestamp.fromDate(startDate!),
+                    'timeDateEnd': Timestamp.fromDate(endDate!),
+                    'fatalityPercent': fatalityPercent,
+                  };
+
+                  await records.set(data);
+
+                  Navigator.of(context).pop(); // Close the dialog
+                }
+              },
+              child: Text('Save'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Card cardLayout(var i, DocumentReference snapRef) {
+    Timestamp timeDateStart = i['timeDateStart'];
+    Timestamp timeDateEnd = i['timeDateEnd'];
+    DateTime dateStart = timeDateStart.toDate();
+    DateTime dateEnd = timeDateEnd.toDate();
+    String dateTimeStart = DateFormat("MMMM d, yyyy").format(dateStart);
+    String dateTimeEnd = DateFormat("MMMM d, yyyy").format(dateEnd);
+
+    return Card(
+      elevation: 5,
+      margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 10),
+      child: Container(
+        padding: EdgeInsets.all(15),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Center(
+                child: Column(
+                  children: [
+                    Text(
+                      'Fatality Rate',
+                      style: TextStyle(
+                          color: Colors.grey,
+                          fontWeight: FontWeight.normal,
+                          fontSize: 13),
+                    ),
+                    Text(
+                      '${i['fatalityPercent']}%',
+                      style: TextStyle(
+                          color: primary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 25),
+                    )
+                  ],
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Container(
+                padding: EdgeInsets.only(bottom: 10),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.only(right: 10),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '${i['label']}',
+                            style: TextStyle(
+                              color: primary,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.delete, color: Colors.red),
+                            onPressed: () {
+                              _deleteRecord(snapRef);
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text("Start of Growth Process",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        )),
+                    Padding(
+                      padding: EdgeInsets.only(left: 10, right: 10, top: 5),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          Icon(Icons.calendar_month_rounded,
+                              color: Colors.grey, size: 16),
+                          Container(
+                            margin: EdgeInsets.only(left: 10),
+                            child: Text(
+                              dateTimeStart,
+                              style: TextStyle(fontSize: 13),
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.only(left: 10, right: 10, top: 5),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          Icon(Icons.pets_rounded,
+                              color: Colors.grey, size: 16),
+                          Container(
+                            margin: EdgeInsets.only(left: 10),
+                            child: Text(
+                              '${i['startHeads']} Chickens Alive',
+                              style: TextStyle(fontSize: 13),
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      height: 10,
+                    ),
+                    Text("End of Growth Process",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        )),
+                    Padding(
+                      padding: EdgeInsets.only(left: 10, right: 10, top: 5),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          Icon(Icons.calendar_month_rounded,
+                              color: Colors.grey, size: 16),
+                          Container(
+                            margin: EdgeInsets.only(left: 10),
+                            child: Text(
+                              dateTimeEnd,
+                              style: TextStyle(fontSize: 13),
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.only(left: 10, right: 10, top: 5),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          Icon(Icons.pets_rounded,
+                              color: Colors.grey, size: 16),
+                          Container(
+                            margin: EdgeInsets.only(left: 10),
+                            child: Text(
+                              '${i['endHeads']} Chickens Left',
+                              style: TextStyle(fontSize: 13),
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _deleteRecord(DocumentReference snapRef) async {
+    await snapRef.delete();
+  }
+
+  chickenDataPage() {
+    return StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('records')
+            .orderBy("timeDateStart", descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData)
+            return Center(
+              child: CircularProgressIndicator(),
+            );
+          else {
+            return Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                children: [
+                  const SizedBox(height: 20),
+                  Expanded(
+                      child: ListView.builder(
+                          itemCount: snapshot.data!.docs.length,
+                          itemBuilder: (context, index) {
+                            var data = snapshot.data!.docs[index].data()
+                                as Map<String, dynamic>;
+                            DocumentReference snapRef =
+                                snapshot.data!.docs[index].reference;
+                            return cardLayout(data, snapRef);
+                            // return GestureDetector(
+                            //   onTap: () {
+                            //     //view record
+                            //     //popupDialog(data, snapRef);
+                            //   },
+                            //   child: cardLayout(data),
+                            // );
+                          }))
+                ],
+              ),
+            );
+          }
+        });
+  }
+
   homepageSelect() {
-    if (currentIndex == 0) {
+    if (energyReading < 1) {
+      return const Center(
+        child: CircularProgressIndicator(color: primary),
+      );
+    } else if (currentIndex == 0 && energyReading > 1) {
       return homePage();
-    } else if (currentIndex == 1) {
+    } else if (currentIndex == 1 && energyReading > 1) {
       return graphPage();
+    } else if (currentIndex == 2 && energyReading > 1) {
+      return chickenDataPage();
     } else {
       return setPage();
     }
+  }
+
+  void showSnackBar(context, message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(
+        message,
+        style: const TextStyle(fontSize: 14),
+      ),
+      duration: const Duration(seconds: 2),
+      action: SnackBarAction(
+        label: "OK",
+        onPressed: () {},
+        textColor: Colors.white,
+      ),
+    ));
   }
 
   @override
@@ -905,6 +1241,10 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
           BottomNavigationBarItem(
             label: '',
+            icon: Icon(Icons.holiday_village_rounded),
+          ),
+          BottomNavigationBarItem(
+            label: '',
             icon: Icon(Icons.settings_rounded),
           )
         ],
@@ -915,6 +1255,17 @@ class _MyHomePageState extends State<MyHomePage> {
           });
         },
       ),
+      floatingActionButton: currentIndex == 2
+          ? FloatingActionButton(
+              onPressed: () {
+                // Add your onPressed code here
+                _showAddEntryDialog(context);
+              },
+              child: Icon(Icons.add),
+              backgroundColor: primary,
+              foregroundColor: Colors.white,
+            )
+          : null,
     );
   }
 }
