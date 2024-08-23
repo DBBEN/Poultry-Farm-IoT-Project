@@ -62,6 +62,7 @@ class _MyHomePageState extends State<MyHomePage> {
   final int maxDataPoints = 20;
   FirebaseDatabase database = FirebaseDatabase.instance;
   final formKey = GlobalKey<FormState>();
+  String queryName = "";
 
   bool button1Toggle = false;
   bool button2Toggle = false;
@@ -339,37 +340,6 @@ class _MyHomePageState extends State<MyHomePage> {
               child: Column(
                 children: [
                   Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Text('CURRENT',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10,
-                        )),
-                  ]),
-                  Text('${currentReading} A',
-                      style: const TextStyle(
-                          color: primary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 25))
-                ],
-              ),
-            )
-          ],
-        ),
-        SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              alignment: Alignment.center,
-              width: 150,
-              decoration: BoxDecoration(
-                  border: Border.all(color: Colors.black, width: 1),
-                  borderRadius: BorderRadius.circular(20)),
-              padding: EdgeInsets.all(15),
-              child: Column(
-                children: [
-                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     Text('POWER',
                         style: TextStyle(
                           color: Colors.grey,
@@ -384,61 +354,10 @@ class _MyHomePageState extends State<MyHomePage> {
                           fontSize: 25))
                 ],
               ),
-            ),
-            SizedBox(width: 10),
-            Container(
-              alignment: Alignment.center,
-              width: 150,
-              decoration: BoxDecoration(
-                  border: Border.all(color: Colors.black, width: 1),
-                  borderRadius: BorderRadius.circular(20)),
-              padding: EdgeInsets.all(15),
-              child: Column(
-                children: [
-                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Text('TEMPERATURE',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10,
-                        )),
-                  ]),
-                  Text('${tempReading.toInt()}°C',
-                      style: const TextStyle(
-                          color: primary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 25))
-                ],
-              ),
             )
           ],
         ),
         SizedBox(height: 10),
-        Container(
-          alignment: Alignment.center,
-          width: 300,
-          decoration: BoxDecoration(
-              border: Border.all(color: Colors.black, width: 1),
-              borderRadius: BorderRadius.circular(20)),
-          padding: EdgeInsets.all(15),
-          child: Column(
-            children: [
-              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Text('HUMIDITY',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 10,
-                    )),
-              ]),
-              Text('${humReading} %',
-                  style: const TextStyle(
-                      color: primary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 25))
-            ],
-          ),
-        )
       ],
     );
   }
@@ -448,50 +367,193 @@ class _MyHomePageState extends State<MyHomePage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          SizedBox(height: 30),
-          Container(
-            height: 250,
-            child: SfRadialGauge(
-                title: GaugeTitle(
-                    text: 'VOLTAGE',
-                    textStyle: TextStyle(
-                        color: Colors.grey,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 10)),
-                axes: <RadialAxis>[
-                  RadialAxis(
-                    annotations: [
-                      GaugeAnnotation(
-                        widget: Text(
-                          '${voltReading} V',
-                          style: TextStyle(
-                              color: primary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 25),
-                        ),
-                      )
-                    ],
-                    minimum: 0,
-                    maximum: 240,
-                    showLabels: false,
-                    showTicks: false,
-                    axisLineStyle: AxisLineStyle(
-                      thickness: 0.2,
-                      cornerStyle: CornerStyle.bothCurve,
-                      color: Color.fromARGB(30, 0, 169, 181),
-                      thicknessUnit: GaugeSizeUnit.factor,
-                    ),
-                    pointers: <GaugePointer>[
-                      RangePointer(
-                        value: voltReading.toDouble(),
+          //SizedBox(height: 30),
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Container(
+              width: 180,
+              height: 200,
+              child: SfRadialGauge(
+                  title: GaugeTitle(
+                      text: 'VOLTAGE',
+                      textStyle: TextStyle(
+                          color: Colors.grey,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10)),
+                  axes: <RadialAxis>[
+                    RadialAxis(
+                      annotations: [
+                        GaugeAnnotation(
+                          widget: Text(
+                            '${voltReading} V',
+                            style: TextStyle(
+                                color: primary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 25),
+                          ),
+                        )
+                      ],
+                      minimum: 0,
+                      maximum: 250,
+                      showLabels: false,
+                      showTicks: false,
+                      axisLineStyle: AxisLineStyle(
+                        thickness: 0.2,
                         cornerStyle: CornerStyle.bothCurve,
-                        width: 0.2,
-                        sizeUnit: GaugeSizeUnit.factor,
-                      )
-                    ],
-                  )
-                ]),
-          ),
+                        color: Color.fromARGB(30, 0, 169, 181),
+                        thicknessUnit: GaugeSizeUnit.factor,
+                      ),
+                      pointers: <GaugePointer>[
+                        RangePointer(
+                          color: primary,
+                          value: voltReading.toDouble(),
+                          cornerStyle: CornerStyle.bothCurve,
+                          width: 0.2,
+                          sizeUnit: GaugeSizeUnit.factor,
+                        )
+                      ],
+                    )
+                  ]),
+            ),
+            Container(
+              width: 180,
+              height: 200,
+              child: SfRadialGauge(
+                  title: GaugeTitle(
+                      text: 'CURRENT',
+                      textStyle: TextStyle(
+                          color: Colors.grey,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10)),
+                  axes: <RadialAxis>[
+                    RadialAxis(
+                      annotations: [
+                        GaugeAnnotation(
+                          widget: Text(
+                            '${currentReading} A',
+                            style: TextStyle(
+                                color: primary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 25),
+                          ),
+                        )
+                      ],
+                      minimum: 0,
+                      //maximum: 250,
+                      showLabels: false,
+                      showTicks: false,
+                      axisLineStyle: AxisLineStyle(
+                        thickness: 0.2,
+                        cornerStyle: CornerStyle.bothCurve,
+                        color: Color.fromARGB(30, 0, 169, 181),
+                        thicknessUnit: GaugeSizeUnit.factor,
+                      ),
+                      pointers: <GaugePointer>[
+                        RangePointer(
+                          color: primary,
+                          value: currentReading.toDouble(),
+                          cornerStyle: CornerStyle.bothCurve,
+                          width: 0.2,
+                          sizeUnit: GaugeSizeUnit.factor,
+                        )
+                      ],
+                    )
+                  ]),
+            )
+          ]),
+
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Container(
+              width: 180,
+              height: 200,
+              child: SfRadialGauge(
+                  title: GaugeTitle(
+                      text: 'TEMPERATURE',
+                      textStyle: TextStyle(
+                          color: Colors.grey,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10)),
+                  axes: <RadialAxis>[
+                    RadialAxis(
+                      annotations: [
+                        GaugeAnnotation(
+                          widget: Text(
+                            '${tempReading}°C',
+                            style: TextStyle(
+                                color: primary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 25),
+                          ),
+                        )
+                      ],
+                      minimum: 0,
+                      maximum: 250,
+                      showLabels: false,
+                      showTicks: false,
+                      axisLineStyle: AxisLineStyle(
+                        thickness: 0.2,
+                        cornerStyle: CornerStyle.bothCurve,
+                        color: Color.fromARGB(30, 0, 169, 181),
+                        thicknessUnit: GaugeSizeUnit.factor,
+                      ),
+                      pointers: <GaugePointer>[
+                        RangePointer(
+                          color: primary,
+                          value: tempReading.toDouble(),
+                          cornerStyle: CornerStyle.bothCurve,
+                          width: 0.2,
+                          sizeUnit: GaugeSizeUnit.factor,
+                        )
+                      ],
+                    )
+                  ]),
+            ),
+            Container(
+              width: 180,
+              height: 200,
+              child: SfRadialGauge(
+                  title: GaugeTitle(
+                      text: 'HUMIDITY',
+                      textStyle: TextStyle(
+                          color: Colors.grey,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10)),
+                  axes: <RadialAxis>[
+                    RadialAxis(
+                      annotations: [
+                        GaugeAnnotation(
+                          widget: Text(
+                            '${humReading}%',
+                            style: TextStyle(
+                                color: primary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 25),
+                          ),
+                        )
+                      ],
+                      minimum: 0,
+                      //maximum: 250,
+                      showLabels: false,
+                      showTicks: false,
+                      axisLineStyle: AxisLineStyle(
+                        thickness: 0.2,
+                        cornerStyle: CornerStyle.bothCurve,
+                        color: Color.fromARGB(30, 0, 169, 181),
+                        thicknessUnit: GaugeSizeUnit.factor,
+                      ),
+                      pointers: <GaugePointer>[
+                        RangePointer(
+                          color: primary,
+                          value: humReading.toDouble(),
+                          cornerStyle: CornerStyle.bothCurve,
+                          width: 0.2,
+                          sizeUnit: GaugeSizeUnit.factor,
+                        )
+                      ],
+                    )
+                  ]),
+            )
+          ]),
+
           SizedBox(height: 30),
           readingsWidget(),
         ],
@@ -1162,6 +1224,16 @@ class _MyHomePageState extends State<MyHomePage> {
               child: Column(
                 children: [
                   const SizedBox(height: 20),
+                  TextField(
+                    onChanged: (value) {
+                      setState(() {
+                        queryName = value;
+                      });
+                    },
+                    decoration: InputDecoration(
+                        labelText: 'Search', suffixIcon: Icon(Icons.search)),
+                  ),
+                  const SizedBox(height: 20),
                   Expanded(
                       child: ListView.builder(
                           itemCount: snapshot.data!.docs.length,
@@ -1170,7 +1242,11 @@ class _MyHomePageState extends State<MyHomePage> {
                                 as Map<String, dynamic>;
                             DocumentReference snapRef =
                                 snapshot.data!.docs[index].reference;
-                            return cardLayout(data, snapRef);
+                            if (queryName.isEmpty)
+                              return cardLayout(data, snapRef);
+                            if (data['label'].toString().contains(queryName)) {
+                              return cardLayout(data, snapRef);
+                            }
                             // return GestureDetector(
                             //   onTap: () {
                             //     //view record
