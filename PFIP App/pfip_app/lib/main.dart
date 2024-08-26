@@ -46,6 +46,8 @@ class _MyHomePageState extends State<MyHomePage> {
   int currentIndex = 0;
   int voltReading = 0;
   double energyReading = 0;
+  double energyReadingLast = 0;
+  double energyReadingNet = 0;
   double currentReading = 0;
   double powerReading = 0;
   double energyBill = 0;
@@ -127,6 +129,8 @@ class _MyHomePageState extends State<MyHomePage> {
           double.parse(event.snapshot.child('curr-reading').value.toString());
       final ener =
           double.parse(event.snapshot.child('ener-reading').value.toString());
+      final enerLast = double.parse(
+          event.snapshot.child('last-ener-reading').value.toString());
 
       setState(() {
         tempReading = temp;
@@ -135,7 +139,9 @@ class _MyHomePageState extends State<MyHomePage> {
         powerReading = power;
         currentReading = current;
         energyReading = ener;
-        energyBill = kwhPrice * energyReading;
+        energyReadingLast = enerLast;
+        energyReadingNet = energyReadingLast - energyReading;
+        energyBill = kwhPrice * energyReadingNet;
       });
     });
   }
@@ -321,7 +327,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           fontSize: 10,
                         )),
                   ]),
-                  Text('${energyReading} kWh',
+                  Text('${energyReadingNet} kWh',
                       style: const TextStyle(
                           color: primary,
                           fontWeight: FontWeight.w600,
@@ -1020,10 +1026,14 @@ class _MyHomePageState extends State<MyHomePage> {
                     'timeDateStart': Timestamp.fromDate(startDate!),
                     'timeDateEnd': Timestamp.fromDate(endDate!),
                     'fatalityPercent': fatalityPercent,
+                    'energyReading': energyReadingNet,
+                    'energyCost': energyBill
                   };
 
                   await records.set(data);
-
+                  database
+                      .ref('device-live/')
+                      .update({"last-ener-reading": energyReading});
                   Navigator.of(context).pop(); // Close the dialog
                 }
               },
@@ -1048,6 +1058,7 @@ class _MyHomePageState extends State<MyHomePage> {
     DateTime dateEnd = timeDateEnd.toDate();
     String dateTimeStart = DateFormat("MMMM d, yyyy").format(dateStart);
     String dateTimeEnd = DateFormat("MMMM d, yyyy").format(dateEnd);
+    num energyBillRecord = i['energyCost'];
 
     return Card(
       elevation: 5,
@@ -1118,7 +1129,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           fontWeight: FontWeight.bold,
                         )),
                     Padding(
-                      padding: EdgeInsets.only(left: 10, right: 10, top: 5),
+                      padding: EdgeInsets.only(left: 7, right: 7, top: 5),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.start,
                         children: [
@@ -1135,7 +1146,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                     ),
                     Padding(
-                      padding: EdgeInsets.only(left: 10, right: 10, top: 5),
+                      padding: EdgeInsets.only(left: 7, right: 7, top: 5),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.start,
                         children: [
@@ -1152,7 +1163,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                     ),
                     SizedBox(
-                      height: 10,
+                      height: 7,
                     ),
                     Text("End of Growth Process",
                         style: TextStyle(
@@ -1160,7 +1171,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           fontWeight: FontWeight.bold,
                         )),
                     Padding(
-                      padding: EdgeInsets.only(left: 10, right: 10, top: 5),
+                      padding: EdgeInsets.only(left: 7, right: 7, top: 5),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.start,
                         children: [
@@ -1177,7 +1188,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                     ),
                     Padding(
-                      padding: EdgeInsets.only(left: 10, right: 10, top: 5),
+                      padding: EdgeInsets.only(left: 7, right: 7, top: 5),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.start,
                         children: [
@@ -1187,6 +1198,48 @@ class _MyHomePageState extends State<MyHomePage> {
                             margin: EdgeInsets.only(left: 10),
                             child: Text(
                               '${i['endHeads']} Chickens Left',
+                              style: TextStyle(fontSize: 13),
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      height: 7,
+                    ),
+                    Text("Energy",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        )),
+                    Padding(
+                      padding: EdgeInsets.only(left: 7, right: 7, top: 5),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          Icon(Icons.electric_bolt_rounded,
+                              color: Colors.grey, size: 16),
+                          Container(
+                            margin: EdgeInsets.only(left: 10),
+                            child: Text(
+                              '${i['energyReading']} kWh',
+                              style: TextStyle(fontSize: 13),
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.only(left: 7, right: 7, top: 5),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          Icon(Icons.money_rounded,
+                              color: Colors.grey, size: 16),
+                          Container(
+                            margin: EdgeInsets.only(left: 10),
+                            child: Text(
+                              '₱${energyBillRecord.toStringAsFixed(2)}',
                               style: TextStyle(fontSize: 13),
                             ),
                           )
