@@ -1280,7 +1280,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   TextField(
                     onChanged: (value) {
                       setState(() {
-                        queryName = value;
+                        queryName = value.toLowerCase();
                       });
                     },
                     decoration: InputDecoration(
@@ -1297,7 +1297,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 snapshot.data!.docs[index].reference;
                             if (queryName.isEmpty)
                               return cardLayout(data, snapRef);
-                            if (data['label'].toString().contains(queryName)) {
+                            if (data['label'].toString().toLowerCase().contains(queryName)) {
                               return cardLayout(data, snapRef);
                             }
                             // return GestureDetector(
