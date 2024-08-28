@@ -102,6 +102,8 @@ class _MyHomePageState extends State<MyHomePage> {
       final switch1 = event.snapshot.child('set-switch-1').value as bool;
       final switch2 = event.snapshot.child('set-switch-2').value as bool;
       //print("Switch 1: $switch1, Switch 2: $switch2");
+      final enerLast = double.parse(
+          event.snapshot.child('last-ener-reading').value.toString());
 
       setState(() {
         kwhPrice = price;
@@ -111,6 +113,7 @@ class _MyHomePageState extends State<MyHomePage> {
         maxHum = maxh;
         button1Toggle = switch1;
         button2Toggle = switch2;
+        energyReadingLast = enerLast;
         //setAlarm = time;
         //print({kwhPrice, energyBill, maxVol, maxHum});
       });
@@ -129,8 +132,6 @@ class _MyHomePageState extends State<MyHomePage> {
           double.parse(event.snapshot.child('curr-reading').value.toString());
       final ener =
           double.parse(event.snapshot.child('ener-reading').value.toString());
-      final enerLast = double.parse(
-          event.snapshot.child('last-ener-reading').value.toString());
 
       setState(() {
         tempReading = temp;
@@ -139,8 +140,7 @@ class _MyHomePageState extends State<MyHomePage> {
         powerReading = power;
         currentReading = current;
         energyReading = ener;
-        energyReadingLast = enerLast;
-        energyReadingNet = energyReadingLast - energyReading;
+        energyReadingNet = energyReading - energyReadingLast;
         energyBill = kwhPrice * energyReadingNet;
       });
     });
@@ -327,7 +327,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           fontSize: 10,
                         )),
                   ]),
-                  Text('${energyReadingNet} kWh',
+                  Text('${energyReadingNet.toStringAsPrecision(2)} kWh',
                       style: const TextStyle(
                           color: primary,
                           fontWeight: FontWeight.w600,
@@ -415,6 +415,15 @@ class _MyHomePageState extends State<MyHomePage> {
                           cornerStyle: CornerStyle.bothCurve,
                           width: 0.2,
                           sizeUnit: GaugeSizeUnit.factor,
+                          gradient: const SweepGradient(colors: <Color>[
+                            Color(0xFF56977D),
+                            primary,
+                            Color(0xFF033C1F)
+                          ], stops: <double>[
+                            0.30,
+                            0.60,
+                            0.90
+                          ]),
                         )
                       ],
                     )
@@ -455,12 +464,20 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                       pointers: <GaugePointer>[
                         RangePointer(
-                          color: primary,
-                          value: currentReading.toDouble(),
-                          cornerStyle: CornerStyle.bothCurve,
-                          width: 0.2,
-                          sizeUnit: GaugeSizeUnit.factor,
-                        )
+                            color: primary,
+                            value: currentReading.toDouble(),
+                            cornerStyle: CornerStyle.bothCurve,
+                            width: 0.2,
+                            sizeUnit: GaugeSizeUnit.factor,
+                            gradient: const SweepGradient(colors: <Color>[
+                              Color(0xFF56977D),
+                              primary,
+                              Color(0xFF033C1F)
+                            ], stops: <double>[
+                              0.30,
+                              0.60,
+                              0.90
+                            ]))
                       ],
                     )
                   ]),
@@ -503,12 +520,20 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                       pointers: <GaugePointer>[
                         RangePointer(
-                          color: primary,
-                          value: tempReading.toDouble(),
-                          cornerStyle: CornerStyle.bothCurve,
-                          width: 0.2,
-                          sizeUnit: GaugeSizeUnit.factor,
-                        )
+                            color: primary,
+                            value: tempReading.toDouble(),
+                            cornerStyle: CornerStyle.bothCurve,
+                            width: 0.2,
+                            sizeUnit: GaugeSizeUnit.factor,
+                            gradient: const SweepGradient(colors: <Color>[
+                              Color(0xFF56977D),
+                              primary,
+                              Color(0xFF033C1F)
+                            ], stops: <double>[
+                              0.30,
+                              0.60,
+                              0.90
+                            ]))
                       ],
                     )
                   ]),
@@ -548,12 +573,20 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                       pointers: <GaugePointer>[
                         RangePointer(
-                          color: primary,
-                          value: humReading.toDouble(),
-                          cornerStyle: CornerStyle.bothCurve,
-                          width: 0.2,
-                          sizeUnit: GaugeSizeUnit.factor,
-                        )
+                            color: primary,
+                            value: humReading.toDouble(),
+                            cornerStyle: CornerStyle.bothCurve,
+                            width: 0.2,
+                            sizeUnit: GaugeSizeUnit.factor,
+                            gradient: const SweepGradient(colors: <Color>[
+                              Color(0xFF56977D),
+                              primary,
+                              Color(0xFF033C1F)
+                            ], stops: <double>[
+                              0.30,
+                              0.60,
+                              0.90
+                            ]))
                       ],
                     )
                   ]),
@@ -1032,7 +1065,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
                   await records.set(data);
                   database
-                      .ref('device-live/')
+                      .ref('device-params/')
                       .update({"last-ener-reading": energyReading});
                   Navigator.of(context).pop(); // Close the dialog
                 }
@@ -1297,7 +1330,10 @@ class _MyHomePageState extends State<MyHomePage> {
                                 snapshot.data!.docs[index].reference;
                             if (queryName.isEmpty)
                               return cardLayout(data, snapRef);
-                            if (data['label'].toString().toLowerCase().contains(queryName)) {
+                            if (data['label']
+                                .toString()
+                                .toLowerCase()
+                                .contains(queryName)) {
                               return cardLayout(data, snapRef);
                             }
                             // return GestureDetector(
@@ -1356,24 +1392,24 @@ class _MyHomePageState extends State<MyHomePage> {
       bottomNavigationBar: BottomNavigationBar(
         selectedItemColor: primary,
         unselectedItemColor: Colors.grey.withOpacity(0.5),
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
         elevation: 0,
         items: const [
           BottomNavigationBarItem(
-            label: '',
+            label: 'Home',
             icon: Icon(Icons.home_rounded),
           ),
           BottomNavigationBarItem(
-            label: '',
+            label: 'Graph',
             icon: Icon(Icons.line_axis_rounded),
           ),
           BottomNavigationBarItem(
-            label: '',
+            label: 'Records',
             icon: Icon(Icons.holiday_village_rounded),
           ),
           BottomNavigationBarItem(
-            label: '',
+            label: 'Settings',
             icon: Icon(Icons.settings_rounded),
           )
         ],
